@@ -4,17 +4,15 @@ import createLogger from 'logging';
 
 const log = createLogger('Monitor');
 
-export class Monitor extends EventEmitter {
+export class Monitor {
 	token: string;
-	alerts: string[];
-	private lastModified: string;
+	alerts: string[] = Array.from(Array(25)).fill('N');;
+	events: EventEmitter = new EventEmitter();
+	private lastModified: string = "Mon, 1 Jan 2000 12:00:00 GMT";
 	private intervalId: NodeJS.Timeout | undefined;
 
 	constructor(token: string) {
-		super();
 		this.token = token;
-		this.alerts = Array.from(Array(25)).fill('N');
-		this.lastModified = "Mon, 1 Jan 2000 12:00:00 GMT";
 	}
 
 	start() {
@@ -23,13 +21,14 @@ export class Monitor extends EventEmitter {
 				headers: {
 					'Authorization': `Bearer ${this.token}`,
 					'If-Modified-Since': this.lastModified
-				}
-			}).catch(e => log.error("Failed to fetch alerts", e));
+				},
+				validateStatus: s => [200, 304, 429].includes(s)
+			}).catch(e => log.error("Failed to fetch alerts:", e));
 
 			log.debug(`Response code ${response?.status}`);
 			switch (response?.status) {
 				case 200:
-					this.lastModified = response.headers['Last-Modified'];
+					this.lastModified = response.headers['last-modified'];
 					const split = response.data.split('');
 
 					// Delete permanent alerts in Krym and Luhansk
@@ -37,12 +36,15 @@ export class Monitor extends EventEmitter {
 					split.splice(11, 1)
 
 					if (this.alerts.join('') !== split.join('')) {
-						this.emit('update', this.alerts, split);
+						log.debug(`Alerts: ${split.join('')}, Last-Modified: ${this.lastModified}`);
+
+						this.events.emit('update', this.alerts, split);
 						this.alerts = split;
 					}
 
 					break;
 				case 304:
+					log.debug("No new alerts");
 					break;
 				case 429:
 					log.warn("Rate limit exceeded");
