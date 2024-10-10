@@ -1,0 +1,8 @@
+services:
+  alerts:
+    image: ghcr.io/notlet/alerts:latest
+    container_name: alertsbot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./channels.sqlite:/alerts/channels.sqlite
