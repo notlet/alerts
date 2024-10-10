@@ -4,16 +4,17 @@
   "main": "bot.ts",
   "author": "notlet",
   "scripts": {
-    "start": "tsc && node bot.js"
+    "build": "tsc",
+    "start": "npm run build && node dist/bot.js"
   },
   "dependencies": {
     "axios": "^1.7.7",
     "grammy": "^1.30.0",
-    "logging": "^3.3.0",
-    "typescript": "^5.6.3"
+    "logging": "^3.3.0"
   },
   "license": "MIT",
   "devDependencies": {
+    "typescript": "^5.6.3",
     "@types/node": "^22.7.5"
   }
 }
