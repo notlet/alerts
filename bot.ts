@@ -62,10 +62,10 @@ bot.command("subscribeall", async ctx => {
 })
 
 const getTime = (start: Date, end: Date) => {
-	const diff = end.getTime() - start.getTime();
-	const hours = Math.floor(diff / 36e5);
-	const minutes = Math.ceil((diff % 36e5) / 6e4);
-	return `${hours > 0 && `${hours} год. `}${minutes} хв.`;
+	const diff = Math.floor((end.getTime() - start.getTime()) / 1000);
+	const hours = Math.floor(diff / 3600);
+	const minutes = Math.ceil((diff % 3600) / 60);
+	return `${hours > 0 ? `${hours} год. ` : ''}${minutes} хв.`;
 }
 
 bot.init().then(async () => {
@@ -84,12 +84,12 @@ bot.init().then(async () => {
 			log.debug(`Relevant for ${channel.id}:`, relevant);
 			if (relevant.length < 1) return;
 
-			queue.push({id: channel.id, message: relevant.map((i: number) => `${newAlerts[i].active ? "🚨" : "🟢"} *${regions[i]}*: ${newAlerts[i].active ? "Повітряна тривога\\!" : `Відбій тривоги _(тривала ${getTime(oldAlerts[i].since, newAlerts[i].since)})_`}`).join('\n')});
+			queue.push({id: channel.id, message: relevant.map((i: number) => `${newAlerts[i].active ? "🚨" : "🟢"} *${regions[i]}*: ${newAlerts[i].active ? "Повітряна тривога!" : `Відбій _(тривала ${getTime(oldAlerts[i].since, newAlerts[i].since)})_`}`).join('\n')});
 			log.debug(`Queued message for ${channel.id}.`);
 		});
 
 		log.info(`Sending updates to ${queue.length} channels.`);
-		for (const { id, message } of queue) await bot.api.sendMessage(id, message, { parse_mode: 'MarkdownV2' })
+		for (const { id, message } of queue) await bot.api.sendMessage(id, message.replace(/([\(\)\.!])/g, '\\$1'), { parse_mode: 'MarkdownV2' })
 			.catch(e => log.error(`Failed to send message to ${id}:`, e))
 			.finally(() => log.debug(`Sent update to ${id}.`));
 	})
