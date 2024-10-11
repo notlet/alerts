@@ -4,14 +4,14 @@ import createLogger from 'logging';
 
 const log = createLogger('Monitor');
 
-export class Monitor {
+export class Monitor extends EventEmitter {
 	token: string;
-	alerts: string[] = Array.from(Array(25)).fill('N');;
-	events: EventEmitter = new EventEmitter();
+	alerts: {active: boolean, since: Date}[] = Array.from(Array(25)).fill({active: false, since: new Date(0)});
 	private lastModified: string = "Mon, 1 Jan 2000 12:00:00 GMT";
 	private intervalId: NodeJS.Timeout | undefined;
 
 	constructor(token: string) {
+		super();
 		this.token = token;
 	}
 
@@ -31,15 +31,17 @@ export class Monitor {
 					this.lastModified = response.headers['last-modified'];
 					const split = response.data.split('');
 
-					// Delete permanent alerts in Krym and Luhansk
+					// Delete permanent alerts
 					split.splice(0, 1)
 					split.splice(11, 1)
 
-					if (this.alerts.join('') !== split.join('')) {
+					const mapped: {active: boolean, since: Date}[] = split.map((a: string, i: number) => ({ active: a === 'A', since: this.alerts[i].active ? this.alerts[i].since : new Date() }));
+
+					if (this.alerts.map(a => a.active).join('') !== mapped.map(a => a.active).join('')) {
 						log.debug(`Alerts: ${split.join('')}, Last-Modified: ${this.lastModified}`);
 
-						this.events.emit('update', this.alerts, split);
-						this.alerts = split;
+						this.emit('update', this.alerts, mapped);
+						this.alerts = mapped;
 					}
 
 					break;

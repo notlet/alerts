@@ -1,6 +1,6 @@
 FROM node:20
 
-WORKDIR /app
+WORKDIR /alerts
 COPY package.json yarn.lock ./
 RUN yarn install
 COPY . .
