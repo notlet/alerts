@@ -35,7 +35,7 @@ export class Monitor extends EventEmitter {
 					split.splice(0, 1)
 					split.splice(11, 1)
 
-					const mapped: {active: boolean, since: Date}[] = split.map((a: string, i: number) => ({ active: a === 'A', since: this.alerts[i].active ? this.alerts[i].since : new Date() }));
+					const mapped: {active: boolean, since: Date}[] = split.map((a: string, i: number) => ({ active: a === 'A', since: this.alerts[i].active === (a === 'A') ? this.alerts[i].since : new Date() }));
 
 					if (this.alerts.map(a => a.active).join('') !== mapped.map(a => a.active).join('')) {
 						log.debug(`Alerts: ${split.join('')}, Last-Modified: ${this.lastModified}`);
