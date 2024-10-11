@@ -2,7 +2,6 @@ services:
   alerts:
     image: ghcr.io/notlet/alerts:latest
     container_name: alertsbot
-    build: .
     tty: true # For colored logs
     restart: unless-stopped
     env_file: .env
