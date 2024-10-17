@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev": "deno run -A --watch bot.ts",
+    "docker:build": "docker image build -t ghcr.io/notlet/alerts:latest .",
+    "docker:upload": "docker push ghcr.io/notlet/alerts:latest",
+    "publish": "deno task docker:build && deno task docker:upload"
+  },
+  "nodeModulesDir": "auto",
+  "imports": {
+		"grammy": "https://deno.land/x/grammy@v1.30.0/mod.ts"
+  }
+}

@@ -1,18 +1,19 @@
 import { Bot } from 'grammy';
-import createLogger from 'logging';
-import { Sequelize, DataTypes, Model } from 'sequelize';
-import { Monitor } from './monitor';
-import regions from './regions.json';
+import { Sequelize, DataTypes, Model } from 'npm:sequelize';
+import { Monitor } from './monitor.ts';
+import regions from './regions.json' with { type: "json" };
 
-const log = createLogger('Bot');
+import { default as logging } from 'npm:logging'
+// @ts-ignore: this library imports weirdly in deno
+const log = logging.default("Bot");
 
-if (!process.env.BOT_TOKEN || !process.env.API_TOKEN) {
+if (!Deno.env.get("BOT_TOKEN") || !Deno.env.get("API_TOKEN")) {
 	log.error('Bot and/or API token is not set!');
-	process.exit(1);
+	Deno.exit(1);
 }
 
-const monitor = new Monitor(process.env.API_TOKEN);
-const bot = new Bot(process.env.BOT_TOKEN);
+const monitor = new Monitor(Deno.env.get("API_TOKEN")!);
+const bot = new Bot(Deno.env.get("BOT_TOKEN")!);
 const db = new Sequelize('sqlite://db/channels.sqlite', { logging: log.debug });
 
 interface Channel {
@@ -89,7 +90,7 @@ bot.init().then(async () => {
 		if (changed.length === 0) return;
 
 		const queue: { id: string, message: string }[] = [];
-		(await Channels.findAll()).every(async (channel: Channel) => {
+		(await Channels.findAll()).every((channel: Channel) => {
 			const relevant = changed.filter((i: number) => channel.areasArray.includes(i));
 			log.debug(`Relevant for ${channel.id}:`, relevant);
 			if (relevant.length < 1) return;

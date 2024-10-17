@@ -1,14 +1,15 @@
-import axios from 'axios';
-import EventEmitter from 'events';
-import createLogger from 'logging';
+import axios from 'npm:axios';
+import EventEmitter from 'node:events';
 
-const log = createLogger('Monitor');
+import { default as logging } from 'npm:logging'
+// @ts-ignore: this library imports weirdly in deno
+const log = logging.default("Monitor");
 
 export class Monitor extends EventEmitter {
 	token: string;
 	alerts: {active: boolean, since: Date}[] = Array.from(Array(25)).fill({active: false, since: new Date(0)});
 	private lastModified: string = "Mon, 1 Jan 2000 12:00:00 GMT";
-	private intervalId: NodeJS.Timeout | undefined;
+	private intervalId: number | undefined;
 
 	constructor(token: string) {
 		super();
@@ -22,12 +23,12 @@ export class Monitor extends EventEmitter {
 					'Authorization': `Bearer ${this.token}`,
 					'If-Modified-Since': this.lastModified
 				},
-				validateStatus: s => [200, 304, 429].includes(s)
-			}).catch(e => log.error("Failed to fetch alerts:", e));
+				validateStatus: (s: number) => [200, 304, 429].includes(s)
+			}).catch((e: unknown) => log.error("Failed to fetch alerts:", e));
 
 			log.debug(`Response code ${response?.status}`);
 			switch (response?.status) {
-				case 200:
+				case 200: {
 					this.lastModified = response.headers['last-modified'];
 					const split = response.data.split('');
 
@@ -45,14 +46,13 @@ export class Monitor extends EventEmitter {
 					}
 
 					break;
-				case 304:
+				} case 304: {
 					log.debug("No new alerts");
 					break;
-				case 429:
+				} case 429: {
 					log.warn("Rate limit exceeded");
 					break;
-				default:
-					log.error(`Unexpected status code ${response?.status}`, response?.data);
+				} default: log.error(`Unexpected status code ${response?.status}`, response?.data);
 			}
 		}, 1e4); // 10 seconds
 		log.info("Alert monitoring started.");
