@@ -1,9 +1,10 @@
 import axios from 'npm:axios';
 import EventEmitter from 'node:events';
+import log4js from 'npm:log4js';
 
-import { default as logging } from 'npm:logging'
-// @ts-ignore: this library imports weirdly in deno
-const log = logging.default("Monitor");
+const log = log4js.getLogger('monitor');
+log.level = Deno.env.get("DEBUG")?.split(',').includes('monitor') ? log4js.levels.DEBUG : log4js.levels.INFO;
+
 
 export class Monitor extends EventEmitter {
 	token: string;
