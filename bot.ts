@@ -23,9 +23,7 @@ const getTime = (start: Date, end: Date) => {
 	return `${hours > 0 ? `${hours} год. ` : ''}${minutes} хв.`;
 }
 
-const reply = (ctx: Context, text: string) => ctx.reply(text.replace(/([()*.!-])/g, '\\$1'), { 
-	parse_mode: 'MarkdownV2',
-});
+const reply = (ctx: Context, text: string) => ctx.reply(text.replace(/([().!-])/g, '\\$1'), { parse_mode: 'MarkdownV2' });
 
 bot.command("getchannel", ctx => reply(ctx, `Chat ID: \`${ctx.chatId}\``));
 
@@ -49,8 +47,8 @@ bot.command("subscribeall", ctx => {
 	return reply(ctx, 'Цей канал тепер підписаний на всі тривоги\\.');
 });
 
-bot.command("areas", ctx => reply(ctx, `🌍 *__Області:__*\n${regions.map((r, i) => `${monitor.alerts[i].active ? '🔴' : '🟢'} ${i}: *${r}*${monitor.alerts[i].active ? ` - ${getTime(monitor.alerts[i].since, new Date())}`: ''}`).join('\n')}`));
-bot.command("alerts", ctx => reply(ctx, `🚨 *__Активні тривоги:__*\n${monitor.alerts.map((a, i) => ({active: a.active, text: '*' + regions[i] + '* (' + getTime(a.since, new Date()) + ')'})).filter(a => a.active).map(a => a.text).join(', ')}`));
+bot.command("areas", ctx => reply(ctx, `🌍 *__Області:__*\n${regions.map((r, i) => `${monitor.alerts[i].active ? '🔴' : '🟢'} *${i}* · ${r}${monitor.alerts[i].active ? ` · _${getTime(monitor.alerts[i].since, new Date())}_`: ''}`).join('\n')}`));
+bot.command("alerts", ctx => reply(ctx, `🚨 *__Активні тривоги:__*\n${monitor.alerts.map((a, i) => ({active: a.active, text: `🔴 ${regions[i]} · _${getTime(a.since, new Date())}_`})).filter(a => a.active).map(a => a.text).join('\n')}`));
 
 bot.command("subscribed", ctx => {
 	const areas = db.all[ctx.chat.id.toString()];

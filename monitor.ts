@@ -36,6 +36,7 @@ export class Monitor extends EventEmitter {
 					// Delete permanent alerts
 					split.splice(0, 1)
 					split.splice(11, 1)
+					split.splice(16, 1)
 
 					const mapped: {active: boolean, since: Date}[] = split.map((a: string, i: number) => ({ active: a === 'A', since: this.alerts[i].active === (a === 'A') ? this.alerts[i].since : new Date() }));
 
