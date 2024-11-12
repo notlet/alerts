@@ -5,10 +5,7 @@ const log = log4js.getLogger('db');
 log.level = Deno.env.get("DEBUG")?.split(',').includes('db') ? log4js.levels.DEBUG : log4js.levels.INFO;
 
 export default class Database {
-	static schema = z.array(z.object({
-		id: z.string(),
-		areas: z.array(z.number())
-	}));
+	static schema = z.record(z.array(z.number()));
 
 	all: z.infer<typeof Database.schema>;
 	#dbPath: string;
@@ -17,7 +14,7 @@ export default class Database {
 		try { Deno.lstatSync(dbPath) }
 		catch(e) {
 			if (!(e instanceof Deno.errors.NotFound)) throw e;
-			Deno.writeTextFileSync(dbPath, '[]');
+			Deno.writeTextFileSync(dbPath, '{}');
 		} 
 
 		this.all = Database.schema.parse(JSON.parse(Deno.readTextFileSync(dbPath)));
@@ -27,16 +24,13 @@ export default class Database {
 	}
 	
 	upsert(id: string, areas: number[]) {
-		const index = this.all.findIndex(c => c.id === id);
-
-		if (index === -1) this.all.push({ id, areas });
-		else this.all[index].areas = areas;
+		this.all[id] = areas;
 		log.debug(`Upserted ${id} with areas ${areas.join(', ')}.`);
 		this.save();
 	}
 
 	destroy(id: string) {
-		this.all = this.all.filter(c => c.id !== id);
+		delete this.all[id]
 		log.debug(`Destroyed entry ${id}.`);
 	}
 

@@ -1,5 +1,5 @@
 import log4js from 'npm:log4js';
-import { Bot } from 'grammy';
+import { Bot, Context } from 'grammy';
 import { Monitor } from './monitor.ts';
 import Database from './db.ts'
 import regions from './regions.json' with { type: "json" };
@@ -23,33 +23,44 @@ const getTime = (start: Date, end: Date) => {
 	return `${hours > 0 ? `${hours} год. ` : ''}${minutes} хв.`;
 }
 
-bot.command("getchannel", ctx => ctx.reply(`Chat ID: \`${ctx.chatId}\``, { parse_mode: 'MarkdownV2' }));
+const reply = (ctx: Context, text: string) => ctx.reply(text.replace(/([()*.!-])/g, '\\$1'), { 
+	parse_mode: 'MarkdownV2',
+});
+
+bot.command("getchannel", ctx => reply(ctx, `Chat ID: \`${ctx.chatId}\``));
 
 bot.command("subscribe", ctx => {
-	db.upsert(ctx.chat.id.toString(), [8]);
-	return ctx.reply('Цей канал тепер підписаний на тривоги *м\\. Київ*\\.', { parse_mode: 'MarkdownV2' });
+	const areas = [
+		...db.all[ctx.chat.id.toString()] || [],
+		...ctx.match?.match(/\d+/g)?.map(Number) || [8]
+	].toSorted((a, b) => a - b).filter(i => i >= 0 && i < 25).filter((v, i, a) => a.indexOf(v) === i);
+
+	db.upsert(ctx.chat.id.toString(), areas);
+	return reply(ctx, `Цей канал тепер підписаний на тривоги *${areas.map(a => regions[a]).join('*, *')}*.`);
 });
+
 bot.command("unsubscribe", ctx => {
 	db.destroy(ctx.chat.id.toString());
-	return ctx.reply('Цей канал тепер відписаний від сповіщень про тривоги.');
+	return reply(ctx, 'Цей канал тепер відписаний від сповіщень про тривоги.');
 });
 
 bot.command("subscribeall", ctx => {
 	db.upsert(ctx.chat.id.toString(), Array.from(Array(25)).map((_, i) => i));
-	return ctx.reply('Цей канал тепер підписаний на всі тривоги\\.', { parse_mode: 'MarkdownV2' });
-})
+	return reply(ctx, 'Цей канал тепер підписаний на всі тривоги\\.');
+});
 
-bot.command("alerts", ctx => ctx.reply(`🚨 *__Активні тривоги:__*\n${monitor.alerts.map((a, i) => ({active: a.active, text: '*' + regions[i] + '* (' + getTime(a.since, new Date()) + ')'})).filter(a => a.active).map(a => a.text).join(', ')}`.replace(/([\(\)\.!-])/g, '\\$1'), { parse_mode: "MarkdownV2" }));
+bot.command("areas", ctx => reply(ctx, `🌍 *__Області:__*\n${regions.map((r, i) => `${monitor.alerts[i].active ? '🔴' : '🟢'} ${i}: *${r}*${monitor.alerts[i].active ? ` - ${getTime(monitor.alerts[i].since, new Date())}`: ''}`).join('\n')}`));
+bot.command("alerts", ctx => reply(ctx, `🚨 *__Активні тривоги:__*\n${monitor.alerts.map((a, i) => ({active: a.active, text: '*' + regions[i] + '* (' + getTime(a.since, new Date()) + ')'})).filter(a => a.active).map(a => a.text).join(', ')}`));
+
 bot.command("subscribed", ctx => {
-	const channel = db.all.find(c => c.id === ctx.chat.id.toString());
-	if (!channel) return ctx.reply('Цей канал не підписаний на жодні тривоги.');
-	return ctx.reply(`Цей канал підписаний на: ${channel.areas.map((i: number) => '*' + regions[i] + '*').join(', ')}.`.replace(/([\(\)\.!-])/g, '\\$1'), { parse_mode: 'MarkdownV2' });
+	const areas = db.all[ctx.chat.id.toString()];
+	if (!areas) return ctx.reply('Цей канал не підписаний на жодні тривоги.');
+	return reply(ctx, `Цей канал підписаний на: *${areas.map(i => regions[i]).join('*, *')}*.`);
 }
 )
 
 bot.init().then(() => {
-	log.info(`Initialized as @${bot.botInfo?.username}.`);
-	log.info('Connected to the database.');
+	log.info(`Initialized as @${bot.botInfo?.username}. (commit ${Deno.env.get("COMMIT_HASH") || '<unknown>'})`);
 
 	monitor.start().on('update', async (oldAlerts, newAlerts) => {
 		const changed: number[] = newAlerts.map((a: {active: boolean}, i: number) => a.active !== oldAlerts[i].active ? i : -1).filter((i: number) => i !== -1);
@@ -57,17 +68,17 @@ bot.init().then(() => {
 		if (changed.length === 0) return;
 
 		const queue: { id: string, message: string }[] = [];
-		db.all.forEach(channel => {
-			const relevant = changed.filter((i: number) => channel.areas.includes(i));
-			log.debug(`Relevant for ${channel.id}:`, relevant);
+		Object.keys(db.all).forEach(id => {
+			const relevant = changed.filter((i: number) => db.all[id].includes(i));
+			log.debug(`Relevant for ${id}:`, relevant);
 			if (relevant.length < 1) return;
 
-			queue.push({id: channel.id, message: relevant.map((i: number) => `${newAlerts[i].active ? "🚨" : "🟢"} *${regions[i]}*: ${newAlerts[i].active ? "Повітряна тривога!" : `Відбій _(тривала ${getTime(oldAlerts[i].since, newAlerts[i].since)})_`}`).join('\n')});
-			log.debug(`Queued message for ${channel.id}.`);
+			queue.push({id, message: relevant.map((i: number) => `${newAlerts[i].active ? "🚨" : "🟢"} *${regions[i]}*: ${newAlerts[i].active ? "Повітряна тривога!" : `Відбій _(тривала ${getTime(oldAlerts[i].since, newAlerts[i].since)})_`}`).join('\n')});
+			log.debug(`Queued message for ${id}.`);
 		});
 
 		log.info(`Sending updates to ${queue.length} channels.`);
-		for (const { id, message } of queue) await bot.api.sendMessage(id, message.replace(/([\(\)\.!-])/g, '\\$1'), { parse_mode: 'MarkdownV2' })
+		for (const { id, message } of queue) await bot.api.sendMessage(id, message.replace(/([().!-])/g, '\\$1'), { parse_mode: 'MarkdownV2' })
 			.catch(e => log.error(`Failed to send message to ${id}:`, e))
 			.finally(() => log.debug(`Sent update to ${id}.`));
 	})

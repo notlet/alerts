@@ -1,7 +1,7 @@
 {
   "tasks": {
     "dev": "deno run -A --watch bot.ts",
-    "docker:build": "docker image build -t ghcr.io/notlet/alerts:latest .",
+    "docker:build": "docker image build -t ghcr.io/notlet/alerts:latest --build-arg HASH=$(git rev-parse --short HEAD) .",
     "docker:upload": "docker push ghcr.io/notlet/alerts:latest",
     "publish": "deno task docker:build && deno task docker:upload"
   },
